@@ -7,7 +7,11 @@ using UnityEngine.UI;
 // Shows correct emotion sprite when response arrives.
 public class FloatingEmotionIcon : MonoBehaviour
 {
-    public enum BubbleState { Thinking, Neutral, Warm, Sad, Angry }
+    public enum BubbleState
+    {
+        Thinking, Neutral, Warm, Sad, Angry,
+        Hopeful, Surprised, Joyful
+    }
 
     [Header("References")]
     public Transform eolindraTransform;
@@ -15,12 +19,15 @@ public class FloatingEmotionIcon : MonoBehaviour
     public RectTransform rectTransform;
     public Image iconImage;
 
-    [Header("Sprites")]
+    [Header("Sprites -- drag one PNG per emotion")]
     public Sprite spriteThinking;
     public Sprite spriteNeutral;
     public Sprite spriteWarm;
     public Sprite spriteSad;
     public Sprite spriteAngry;
+    public Sprite spriteHopeful;    // star PNG
+    public Sprite spriteSurprised;  // exclamation PNG
+    public Sprite spriteJoyful;     // laughing face PNG
 
     [Header("Position above her head (world units)")]
     public float worldYOffset = 2.5f;
@@ -29,12 +36,15 @@ public class FloatingEmotionIcon : MonoBehaviour
     public float bobSpeed = 1.5f;
     public float bobAmount = 6f;
 
-    // Tint colours
-    private static readonly Color ColThinking = new Color(1.00f, 1.00f, 0.55f, 1f);
-    private static readonly Color ColNeutral = new Color(0.85f, 0.85f, 0.95f, 1f);
-    private static readonly Color ColWarm = new Color(1.00f, 1.00f, 1.00f, 1f);
-    private static readonly Color ColSad = new Color(0.55f, 0.75f, 1.00f, 1f);
-    private static readonly Color ColAngry = new Color(1.00f, 1.00f, 1.00f, 1f);
+    // Tint colours for each state
+    private static readonly Color ColThinking = new Color(1.00f, 1.00f, 0.55f, 1f); // yellow
+    private static readonly Color ColNeutral = new Color(0.85f, 0.85f, 0.95f, 1f); // pale grey
+    private static readonly Color ColWarm = new Color(1.00f, 1.00f, 1.00f, 1f); // white
+    private static readonly Color ColSad = new Color(0.55f, 0.75f, 1.00f, 1f); // blue
+    private static readonly Color ColAngry = new Color(1.00f, 1.00f, 1.00f, 1f); // white
+    private static readonly Color ColHopeful = new Color(1.00f, 0.85f, 0.20f, 1f); // golden yellow
+    private static readonly Color ColSurprised = new Color(0.80f, 0.40f, 1.00f, 1f); // purple
+    private static readonly Color ColJoyful = new Color(0.20f, 0.90f, 0.60f, 1f); // bright teal
 
     private Camera mainCamera;
     private EmotionState lastEmotion = EmotionState.Neutral;
@@ -71,7 +81,7 @@ public class FloatingEmotionIcon : MonoBehaviour
             CheckEmotionChanged();
     }
 
-    // ── Called by DialogueManager when dialogue opens ─────────────
+    // Called by DialogueManager when dialogue opens
     public void ShowIcon()
     {
         dialogueOpen = true;
@@ -81,7 +91,7 @@ public class FloatingEmotionIcon : MonoBehaviour
         SetState(BubbleState.Neutral);
     }
 
-    // ── Called by DialogueManager when dialogue closes ────────────
+    // Called by DialogueManager when dialogue closes
     public void HideIcon()
     {
         dialogueOpen = false;
@@ -90,7 +100,9 @@ public class FloatingEmotionIcon : MonoBehaviour
         if (rectTransform != null) rectTransform.localScale = Vector3.one;
     }
 
-    // ── Called by AIRequestHandler ────────────────────────────────
+    // Called by AIRequestHandler
+    // true  = waiting for response, show cloud
+    // false = response arrived, show emotion sprite
     public void SetThinking(bool thinking)
     {
         isThinking = thinking;
@@ -101,8 +113,7 @@ public class FloatingEmotionIcon : MonoBehaviour
         }
         else
         {
-            // Read emotion directly from the system right now
-            // (lastEmotion may be stale because we skipped updates while thinking)
+            // Read emotion directly now -- lastEmotion may be stale
             if (emotionSystem != null)
             {
                 lastEmotion = emotionSystem.currentEmotion;
@@ -111,7 +122,7 @@ public class FloatingEmotionIcon : MonoBehaviour
         }
     }
 
-    // ── Sprite and Colour Application ─────────────────────────────
+    // Applies the correct sprite and colour for the given state
     public void SetState(BubbleState state)
     {
         if (iconImage == null) return;
@@ -125,18 +136,37 @@ public class FloatingEmotionIcon : MonoBehaviour
                 sprite = spriteThinking != null ? spriteThinking : spriteNeutral;
                 col = ColThinking;
                 break;
+
             case BubbleState.Warm:
-                sprite = spriteWarm;
+                sprite = spriteWarm != null ? spriteWarm : spriteNeutral;
                 col = ColWarm;
                 break;
+
             case BubbleState.Sad:
                 sprite = spriteSad != null ? spriteSad : spriteNeutral;
                 col = ColSad;
                 break;
+
             case BubbleState.Angry:
                 sprite = spriteAngry != null ? spriteAngry : spriteNeutral;
                 col = ColAngry;
                 break;
+
+            case BubbleState.Hopeful:
+                sprite = spriteHopeful != null ? spriteHopeful : spriteNeutral;
+                col = ColHopeful;
+                break;
+
+            case BubbleState.Surprised:
+                sprite = spriteSurprised != null ? spriteSurprised : spriteNeutral;
+                col = ColSurprised;
+                break;
+
+            case BubbleState.Joyful:
+                sprite = spriteJoyful != null ? spriteJoyful : spriteWarm;
+                col = ColJoyful;
+                break;
+
             default:
                 sprite = spriteNeutral != null ? spriteNeutral : spriteWarm;
                 col = ColNeutral;
@@ -149,7 +179,7 @@ public class FloatingEmotionIcon : MonoBehaviour
         iconImage.enabled = true;
     }
 
-    // ── Pulse While Thinking ──────────────────────────────────────
+    // Pulse animation while waiting for API response
     void HandlePulse()
     {
         if (!isThinking)
@@ -166,7 +196,7 @@ public class FloatingEmotionIcon : MonoBehaviour
             rectTransform.localScale = new Vector3(scale, scale, 1f);
     }
 
-    // ── Follow Eolindra ───────────────────────────────────────────
+    // Moves the icon to sit above Eolindra's head on screen
     void PositionAboveEolindra()
     {
         Vector3 worldPos = eolindraTransform.position;
@@ -189,7 +219,7 @@ public class FloatingEmotionIcon : MonoBehaviour
             rectTransform.position = new Vector3(screenPos.x, screenPos.y, 0f);
     }
 
-    // ── Emotion Change Detection ──────────────────────────────────
+    // Checks every frame if emotion changed and updates sprite
     void CheckEmotionChanged()
     {
         if (emotionSystem == null) return;
@@ -198,6 +228,7 @@ public class FloatingEmotionIcon : MonoBehaviour
         ApplyEmotionState(lastEmotion);
     }
 
+    // Converts EmotionState enum to BubbleState and applies it
     void ApplyEmotionState(EmotionState emotion)
     {
         switch (emotion)
@@ -205,6 +236,9 @@ public class FloatingEmotionIcon : MonoBehaviour
             case EmotionState.Warm: SetState(BubbleState.Warm); break;
             case EmotionState.Sad: SetState(BubbleState.Sad); break;
             case EmotionState.Angry: SetState(BubbleState.Angry); break;
+            case EmotionState.Hopeful: SetState(BubbleState.Hopeful); break;
+            case EmotionState.Surprised: SetState(BubbleState.Surprised); break;
+            case EmotionState.Joyful: SetState(BubbleState.Joyful); break;
             default: SetState(BubbleState.Neutral); break;
         }
     }

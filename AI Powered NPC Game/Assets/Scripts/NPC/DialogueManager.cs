@@ -14,17 +14,15 @@ public class DialogueManager : MonoBehaviour
     public NPCStop npcStop;
     public PlayerInteraction playerInteraction;
     public NPCEmotionSystem emotionSystem;
-    public FloatingEmotionIcon emotionIcon;  // drag FloatingHeart here
+    public FloatingEmotionIcon emotionIcon;
 
-    // Stores the last 8 lines of conversation for memory context
     private List<string> memoryLines = new List<string>();
     private const int MAX_MEMORY = 8;
 
-    // Prevents the ending from triggering more than once
     private bool endingStarted = false;
 
     // ─────────────────────────────────────────────────────────────
-    // PUBLIC -- called by PlayerInteraction and UI buttons
+    // PUBLIC
     // ─────────────────────────────────────────────────────────────
 
     public void OpenDialogue()
@@ -35,7 +33,6 @@ public class DialogueManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        // Show the emotion icon above Eolindra's head
         if (emotionIcon != null) emotionIcon.ShowIcon();
 
         string greeting = GetGreeting();
@@ -50,15 +47,12 @@ public class DialogueManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        // Hide the emotion icon when conversation ends
         if (emotionIcon != null) emotionIcon.HideIcon();
-
         if (npcPatrol != null) npcPatrol.enabled = true;
         if (npcStop != null) npcStop.StopFacingPlayer();
         if (playerInteraction != null) playerInteraction.EndInteraction();
     }
 
-    // Called by DialogueUIController when player clicks Send or presses Enter
     public void OnPlayerSubmitMessage(string playerMessage)
     {
         playerMessage = playerMessage.Trim();
@@ -81,31 +75,25 @@ public class DialogueManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // PRIVATE -- internal logic
+    // PRIVATE
     // ─────────────────────────────────────────────────────────────
 
-    // Called by AIRequestHandler when the Groq response arrives
     void OnAIResponse(AIResponse aiResult)
     {
-        // 1. Show Eolindra's reply
         if (dialogueUI != null)
             dialogueUI.DisplayNPCText(aiResult.dialogueText);
 
-        // 2. Store in memory
         AddMemory("EOLINDRA: " + aiResult.dialogueText);
 
-        // 3. Apply trust and emotion -- both come FROM the LLM
         if (emotionSystem != null)
         {
             emotionSystem.ModifyTrust(aiResult.trustChange);
             emotionSystem.SetEmotionFromString(aiResult.emotion);
         }
 
-        // 4. Check if ending should trigger
         CheckForEnding();
     }
 
-    // Checks trust score after every response
     void CheckForEnding()
     {
         if (endingStarted) return;
@@ -118,15 +106,11 @@ public class DialogueManager : MonoBehaviour
 
     IEnumerator TriggerEndingSequence()
     {
-        // Lock input so player cannot keep typing
         if (dialogueUI != null) dialogueUI.LockInput(true);
-
-        // Hide emotion icon during ending
         if (emotionIcon != null) emotionIcon.HideIcon();
 
         yield return new WaitForSeconds(1.5f);
 
-        // Pre-written final speech -- guaranteed to work during demo
         string finalSpeech =
             "I did not think anyone would come. Not after so long. " +
             "You have given me something I had forgotten existed. " +
@@ -183,15 +167,21 @@ public class DialogueManager : MonoBehaviour
             "Mildly positive (+5 to +14): polite, curious, respectful.\n" +
             "Neutral (0 to +4): small talk, simple questions.\n" +
             "Negative (-1 to -20): rude, dismissive, threatening, or mocking.\n" +
-            "\nRules for emotion -- choose based on what the player just said:\n" +
-            "warm:    player said something kind, empathetic, caring, or helpful. " +
-            "Even ONE kind sentence is enough to return warm. " +
-            "If the player expresses care for you or the forest, return warm.\n" +
-            "sad:     player mentioned loneliness, grief, loss, or things that were destroyed.\n" +
-            "angry:   player was rude, dismissive, impatient, or threatening.\n" +
-            "neutral: player asked a plain question with no emotional weight.\n" +
+            "\nRules for emotion -- choose the ONE that best fits what the player just said:\n" +
+            "warm:      player said something kind, empathetic, caring, or helpful. " +
+                       "Even ONE kind sentence is enough. Return warm if there is any warmth at all.\n" +
+            "sad:       player mentioned loneliness, grief, loss, death, or things destroyed.\n" +
+            "angry:     player was rude, dismissive, impatient, or threatening.\n" +
+            "hopeful:   player promised to help, committed to finding the Waystones, " +
+                       "or expressed belief that things can change for the better.\n" +
+            "surprised: player said something unexpectedly wise, perceptive, or insightful " +
+                       "that caught you completely off guard in a positive way.\n" +
+            "joyful:    player said something that fills you with genuine happiness -- " +
+                       "such as confirming all Waystones are found or expressing pure joy for you.\n" +
+            "neutral:   plain question or small talk with absolutely no emotional weight.\n" +
             "IMPORTANT: do not default to neutral out of caution. " +
-            "If the message has any warmth or kindness in it, return warm.\n" +
+            "Seven emotion options are available -- pick the one that genuinely fits. " +
+            "If the message has any warmth or kindness, return warm.\n" +
             "Return raw JSON only. No markdown code blocks. No extra text.";
     }
 
@@ -205,7 +195,6 @@ public class DialogueManager : MonoBehaviour
         bool allStonesFound = (WaystoneManager.Instance != null)
             && WaystoneManager.Instance.AllFound();
 
-        // Stage 1 -- trust too low, Eolindra reveals nothing
         if (trust < 25f)
         {
             return
@@ -215,7 +204,6 @@ public class DialogueManager : MonoBehaviour
                 "or the Waystones yet. You watch them carefully.";
         }
 
-        // Stage 2 -- some trust, Eolindra hints at the Accord
         if (trust < 50f)
         {
             return
@@ -229,7 +217,6 @@ public class DialogueManager : MonoBehaviour
                 "what the druids started. Do not give explicit instructions yet.";
         }
 
-        // Stage 3 -- enough trust, Eolindra explicitly asks for help
         if (trust < 80f && !allStonesFound)
         {
             if (stonesFound == 0)
@@ -255,7 +242,6 @@ public class DialogueManager : MonoBehaviour
                 "You are emotional -- this has not happened in two centuries.";
         }
 
-        // Stage 4 -- all stones found, building to the ending
         if (allStonesFound && trust < 80f)
         {
             return
@@ -268,7 +254,6 @@ public class DialogueManager : MonoBehaviour
                 "You sense your long vigil is almost over.";
         }
 
-        // Stage 5 -- trust maxed, ending about to trigger
         return
             "The player has earned your complete trust. " +
             "You are at peace for the first time in two centuries. " +

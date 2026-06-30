@@ -1,12 +1,17 @@
 using UnityEngine;
 
-// The four emotional states Eolindra can be in.
+// The seven emotional states Eolindra can be in.
+// Neutral, Warm, Sad, Angry were original.
+// Hopeful, Surprised, Joyful are new additions.
 public enum EmotionState
 {
     Neutral,
     Warm,
     Sad,
-    Angry     
+    Angry,
+    Hopeful,
+    Surprised,
+    Joyful
 }
 
 // Attached to: Eolindra
@@ -26,8 +31,7 @@ public class NPCEmotionSystem : MonoBehaviour
     public void ModifyTrust(float amount)
     {
         trustScore = Mathf.Clamp(trustScore + amount, 0f, 100f);
-        // NOTE: emotion is no longer set here.
-        // It is set by SetEmotionFromString() which is called separately.
+        // Emotion is set separately by SetEmotionFromString()
         Debug.Log("[Trust] Score: " + trustScore + " | Emotion: " + currentEmotion);
     }
 
@@ -52,6 +56,9 @@ public class NPCEmotionSystem : MonoBehaviour
             case "warm": currentEmotion = EmotionState.Warm; break;
             case "sad": currentEmotion = EmotionState.Sad; break;
             case "angry": currentEmotion = EmotionState.Angry; break;
+            case "hopeful": currentEmotion = EmotionState.Hopeful; break;
+            case "surprised": currentEmotion = EmotionState.Surprised; break;
+            case "joyful": currentEmotion = EmotionState.Joyful; break;
             default: currentEmotion = EmotionState.Neutral; break;
         }
 
@@ -60,7 +67,7 @@ public class NPCEmotionSystem : MonoBehaviour
     }
 
     // Returns a text description of the current emotion.
-    // This is included in the system prompt so the LLM knows Eolindra's mood.
+    // Included in the system prompt so the LLM knows Eolindra's current mood.
     public string GetEmotionDescription()
     {
         switch (currentEmotion)
@@ -68,12 +75,30 @@ public class NPCEmotionSystem : MonoBehaviour
             case EmotionState.Warm:
                 return "warm and open, beginning to trust this person, " +
                        "more willing to share memories of the forest";
+
             case EmotionState.Sad:
                 return "melancholic and reflective, speaking softly, " +
                        "remembering things that were lost";
+
             case EmotionState.Angry:
                 return "stern and protective, giving a clear warning to " +
                        "respect the forest";
+
+            case EmotionState.Hopeful:
+                return "cautiously hopeful for the first time in centuries, " +
+                       "barely daring to believe things might actually change, " +
+                       "voice slightly softer and more open than usual";
+
+            case EmotionState.Surprised:
+                return "genuinely surprised and caught off guard, " +
+                       "this stranger has said something unexpected that " +
+                       "broke through your usual composure";
+
+            case EmotionState.Joyful:
+                return "quietly joyful in a way that feels almost unfamiliar, " +
+                       "like sunlight after two hundred years of shadow, " +
+                       "a warmth you had forgotten you could feel";
+
             default:
                 return "wary and formal, guarded but not hostile, " +
                        "watching the stranger carefully";
